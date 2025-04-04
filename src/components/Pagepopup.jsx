@@ -8,8 +8,9 @@ import {
   CircularProgress,
 } from "@mui/material";
 
-const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
+const AddBookPopup = ({ open, handleClose, onSave, book, loading }) => {
   const [formData, setFormData] = useState({
+    book_id: "",  // Include book_id
     title: "",
     author: "",
     isbn: "",
@@ -19,41 +20,42 @@ const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
   });
 
   const [errors, setErrors] = useState({
-    title: "",
-    author: "",
-    isbn: "",
-    published_year: "",
-    category: "",
-    copies_available: "",
+    title: false,
+    author: false,
+    isbn: false,
+    published_year: false,
+    category: false,
+    copies_available: false,
   });
 
   useEffect(() => {
-    if (user) {
+    if (book) {
       setFormData({
-        title: user.title || "",
-        author: user.author || "",
-        isbn: user.isbn || "",
-        published_year: user.published_year || "",
-        category: user.category || "",
-        copies_available: user.copies_available || "",
+        book_id: book._id || "",  // Auto-fill book ID if editing
+        title: book.title || "",
+        author: book.author || "",
+        isbn: book.isbn || "",
+        published_year: book.published_year || "",
+        category: book.category || "",
+        copies_available: book.copies_available || "",
       });
 
       setErrors({
-        title: "",
-        author: "",
-        isbn: "",
-        published_year: "",
-        category: "",
-        copies_available: "",
+        title: false,
+        author: false,
+        isbn: false,
+        published_year: false,
+        category: false,
+        copies_available: false,
       });
     }
-  }, [user]);
+  }, [book]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
       ...prevData,
-      [name]: name === "copies_available" ? parseInt(value, 10) || 0 : value, // Convert copies_available to number
+      [name]: name === "copies_available" ? parseInt(value, 10) || 0 : value,
     }));
 
     setErrors((prevErrors) => ({
@@ -64,44 +66,37 @@ const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
 
   const handleSubmit = async () => {
     const newErrors = {
-      title: formData.title.trim() === "",
-      author: formData.author.trim() === "",
-      isbn: formData.isbn.trim() === "",
-      published_year: formData.published_year.trim() === "",
-      category: formData.category.trim() === "",
-      copies_available: formData.copies_available === 0, // Ensure copies_available is not empty or 0
+      title: !formData.title.trim(),
+      author: !formData.author.trim(),
+      isbn: !formData.isbn.trim(),
+      published_year: !formData.published_year.trim(),
+      category: !formData.category.trim(),
+      copies_available: formData.copies_available <= 0,
     };
 
-    console.log("API POST Validation Errors:", newErrors);
     setErrors(newErrors);
 
     if (Object.values(newErrors).includes(true)) return;
 
     try {
-      const apiUrl = "http://192.168.0.175:3000/books"; // Ensure this is correct
+      const apiUrl = book ? `http://192.168.0.175:3000/books/${formData.book_id}` : "http://192.168.0.175:3000/books";
 
       const response = await fetch(apiUrl, {
-        method: "POST", // Make sure POST is the correct method for adding books
-        headers: {
-          "Content-Type": "application/json",
-        },
+        method: book ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      console.log("API Response:", response);
-
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Failed to add book: ${errorData.message || response.statusText}`);
+        throw new Error(`Failed to ${book ? "update" : "add"} book: ${errorData.message || response.statusText}`);
       }
 
-      const addedBook = await response.json();
-      console.log("Book added successfully:", addedBook);
-
-      onSave(addedBook);
+      const savedBook = await response.json();
+      onSave(savedBook);
       handleClose();
     } catch (error) {
-      console.error("Error adding book:", error.message);
+      console.error("Error saving book:", error.message);
     }
   };
 
@@ -121,64 +116,35 @@ const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
         }}
       >
         <Typography variant="h6" gutterBottom>
-          Add Book Details
+          {book ? "Edit Book Details" : "Add Book"}
         </Typography>
 
-        <TextField
-          fullWidth
-          margin="normal"
-          label="Title"
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          error={errors.title}
-          helperText={errors.title ? "Title is required" : ""}
-          required
-        />
-        <TextField
-          fullWidth
-          margin="normal"
-          label="Author"
-          name="author"
-          value={formData.author}
-          onChange={handleChange}
-          error={errors.author}
-          helperText={errors.author ? "Author is required" : ""}
-          required
-        />
-        <TextField
-          fullWidth
-          margin="normal"
-          label="ISBN"
-          name="isbn"
-          value={formData.isbn}
-          onChange={handleChange}
-          error={errors.isbn}
-          helperText={errors.isbn ? "ISBN is required" : ""}
-          required
-        />
-        <TextField
-          fullWidth
-          margin="normal"
-          label="Published Year"
-          name="published_year"
-          value={formData.published_year}
-          onChange={handleChange}
-          error={errors.published_year}
-          helperText={errors.published_year ? "Published Year is required" : ""}
-          required
-        />
-        <TextField
-          fullWidth
-          margin="normal"
-          label="Category"
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          error={errors.category}
-          helperText={errors.category ? "Category is required" : ""}
-          required
-        />
+        {book && (
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Book ID"
+            name="book_id"
+            value={formData.book_id}
+            disabled  // Make book_id readonly
+          />
+        )}
+
+        {["title", "author", "isbn", "published_year", "category"].map((field) => (
+          <TextField
+            key={field}
+            fullWidth
+            margin="normal"
+            label={field.replace("_", " ").toUpperCase()}
+            name={field}
+            value={formData[field]}
+            onChange={handleChange}
+            error={errors[field]}
+            helperText={errors[field] ? `${field.replace("_", " ")} is required` : ""}
+            required
+          />
+        ))}
+
         <TextField
           fullWidth
           margin="normal"
@@ -188,25 +154,15 @@ const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
           value={formData.copies_available}
           onChange={handleChange}
           error={errors.copies_available}
-          helperText={errors.copies_available ? "Copies Available is required" : ""}
+          helperText={errors.copies_available ? "Copies Available must be greater than 0" : ""}
           required
         />
 
         <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : "Save"}
+          <Button variant="contained" color="primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : book ? "Update" : "Save"}
           </Button>
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={handleClose}
-            disabled={loading}
-          >
+          <Button variant="outlined" color="secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
         </Box>
@@ -215,4 +171,6 @@ const EditProfilePopup = ({ open, handleClose, onSave, user, loading }) => {
   );
 };
 
-export default EditProfilePopup;
+export default AddBookPopup;
+
+

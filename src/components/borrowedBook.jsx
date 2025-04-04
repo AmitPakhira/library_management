@@ -1,151 +1,176 @@
-import React, { useState } from "react";
-import { 
+
+import React, { useState, useEffect } from "react";
+import {
+  Modal,
+  Box,
   TextField,
-  Typography,
   Button,
-  Snackbar,
-  Alert,
+  Typography,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions
 } from "@mui/material";
 
-export default function BorrowBook() {
-  const [userId, setUserId] = useState("");
-  const [bookId, setBookId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const [confirmOpen, setConfirmOpen] = useState(false);
+const EditProfilePopup = ({ open, handleClose, onBorrow, user, loading }) => {
+  const [formData, setFormData] = useState({
+    title: "",
+    book_id: "",
+    amount: "",
+   
+  });
 
-  const showSnackbar = (message, severity = "success") => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity);
-    setSnackbarOpen(true);
-  };
+  const [errors, setErrors] = useState({
+    usear_id: "",
+    book_id: "",
+    amount: "",
+   
+  });
 
-  const handleConfirmOpen = () => {
-    if (!userId || !bookId || !amount) {
-      showSnackbar("All fields are required!", "error");
-      return;
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        usear_id: user.usear_id || "",
+        book_id: user.book_id || "",
+        amount: user.amount || "",
+       
+      });
+
+      setErrors({
+        usear_id: "",
+        book_id: "",
+        amount: "",
+       
+      });
     }
-    setConfirmOpen(true);
+  }, [user]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: name === "copies_available" ? parseInt(value, 10) || 0 : value, // Convert copies_available to number
+    }));
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: value.trim() === "",
+    }));
   };
 
-  const handleConfirmClose = () => {
-    setConfirmOpen(false);
-  };
+  const handleSubmit = async () => {
+    const newErrors = {
+      usear_id: formData.usear_id.trim() === "",
+      book_id: formData.book_id.trim() === "",
+      amount: formData.amount.trim() === "",
+      published_year: formData.published_year.trim() === "",
+      category: formData.category.trim() === "",
+      copies_available: formData.copies_available === 0, 
+    };
 
-  const handleBorrowBook = async () => {
-    setConfirmOpen(false);
-    setLoading(true);
+    console.log("API POST Validation Errors:", newErrors);
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).includes(true)) return;
 
     try {
-      const response = await fetch("http://192.168.0.175:3000/borrows", {
-        method: "POST",
+      const apiUrl = "http://192.168.0.175:3000/books"; 
+
+      const response = await fetch(apiUrl, {
+        method: "POST", //
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          user_id: userId,
-          book_id: bookId,
-          amount,
-        }),
+        body: JSON.stringify(formData),
       });
 
+      console.log("API Response:", response);
+
       if (!response.ok) {
-        throw new Error(`Failed to borrow book: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(`Failed to add book: ${errorData.message || response.statusText}`);
       }
 
-      showSnackbar("Book borrowed successfully!", "success");
+      const addedBook = await response.json();
+      console.log("Book added successfully:", addedBook);
 
-      // Clear input fields after borrowing
-      setUserId("");
-      setBookId("");
-      setAmount("");
+      onBorrow(addedBook);
+      handleClose();
     } catch (error) {
-      showSnackbar("Error borrowing book!", "error");
-    } finally {
-      setLoading(false);
+      console.error("Error adding book:", error.message);
     }
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 500, margin: "auto", marginTop: 50 }}>
-      <Typography variant="h4" component="h1" style={{ marginBottom: 24 }}>
-        Borrow a Book
-      </Typography>
-
-      <TextField
-        label="User ID"
-        variant="outlined"
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Book ID"
-        variant="outlined"
-        value={bookId}
-        onChange={(e) => setBookId(e.target.value)}
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Amount"
-        variant="outlined"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        fullWidth
-        margin="normal"
-      />
-
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleConfirmOpen}
-        disabled={loading}
-        fullWidth
-        style={{ marginTop: 20 }}
+    <Modal open={open} onClose={handleClose}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 400,
+          bgcolor: "background.paper",
+          boxShadow: 24,
+          p: 4,
+          borderRadius: 2,
+        }}
       >
-        {loading ? <CircularProgress size={24} /> : "Borrow"}
-      </Button>
+        <Typography variant="h6" gutterBottom>
+          Add Book Details
+        </Typography>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-      >
-        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: "100%" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-
-      {/* Confirmation Popup */}
-      <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-        <DialogTitle>Confirm Borrow</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to borrow this book?
-          </DialogContentText>
-          <Typography><strong>User ID:</strong> {userId}</Typography>
-          <Typography><strong>Book ID:</strong> {bookId}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleConfirmClose} color="secondary">
+        <TextField
+          fullWidth
+          margin="normal"
+          label="USER_ID"
+          name="USER_ID"
+          value={formData.usear_id}
+          onChange={handleChange}
+          error={errors.usear_id}
+          helperText={errors.usear_id ? "usear_id is required" : ""}
+          required
+        />
+        <TextField
+          fullWidth
+          margin="normal"
+          label="BOOK_ID"
+          name="BOOK_ID"
+          value={formData.book_id}
+          onChange={handleChange}
+          error={errors.book_id}
+          helperText={errors.book_id ? "book_id is required" : ""}
+          required
+        />
+        <TextField
+          fullWidth
+          margin="normal"
+          label="AMOUNT"
+          name="AMOUNT"
+          value={formData.amount}
+          onChange={handleChange}
+          error={errors.amount}
+          helperText={errors.amount ? "amount is required" : ""}
+          required
+        />
+        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : "Borrow"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={handleClose}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleBorrowBook} color="primary" autoFocus>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        </Box>
+      </Box>
+    </Modal>
   );
-}
+};
+
+export default EditProfilePopup;

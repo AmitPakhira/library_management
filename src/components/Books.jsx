@@ -76,7 +76,7 @@ const Books = () => {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ mb: 4, textAlign: "center" }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 4, textAlign: "center" ,  }}>
         Books
       </Typography>
 

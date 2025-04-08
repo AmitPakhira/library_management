@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Box, TextField, Button, Typography, CircularProgress } from "@mui/material";
 
-const BorrowBookPopup = ({ open, handleClose, onBorrow, user, loading }) => {
+const BorrowBookPopup = ({ open, handleClose, onBorrow, onReturn, user, loading, bookStatus }) => {
   const [formData, setFormData] = useState({
     user_id: "",
     book_id: "",
     amount: "",
   });
+
+  const [isBorrowed, setIsBorrowed] = useState(false);
 
   // ✅ Auto-fill Book ID when "user" (selected book) is passed
   useEffect(() => {
@@ -15,8 +17,9 @@ const BorrowBookPopup = ({ open, handleClose, onBorrow, user, loading }) => {
         ...prevData,
         book_id: user.id, // ✅ Auto-fill Book ID using "book.id"
       }));
+      setIsBorrowed(bookStatus === 'borrowed'); // Determine if the book is already borrowed
     }
-  }, [user]);
+  }, [user, bookStatus]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,10 +40,15 @@ const BorrowBookPopup = ({ open, handleClose, onBorrow, user, loading }) => {
     onBorrow(formData); // ✅ Send the full formData object
   };
 
+  const handleReturn = () => {
+    console.log("Returning the book with data:", formData); // ✅ Debugging return request
+    onReturn(formData); // Call the return book API
+  };
+
   return (
     <Modal open={open} onClose={handleClose}>
-      <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 400, bgcolor: "background.paper", p: 4, borderRadius: 2 }}>
-        <Typography variant="h6">Borrow Book</Typography>
+      <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 400, bgcolor: "background.paper", p: 10, borderRadius: 2 }}>
+        <Typography variant="h6">{isBorrowed ? "Return Book" : "Borrow Book"}</Typography>
 
         {/* ✅ Automatically show Book ID */}
         <TextField
@@ -71,9 +79,15 @@ const BorrowBookPopup = ({ open, handleClose, onBorrow, user, loading }) => {
         />
 
         <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-          <Button variant="contained" color="primary" onClick={handleSubmit} disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : "Borrow"}
-          </Button>
+          {!isBorrowed ? (
+            <Button variant="contained" color="primary" onClick={handleSubmit} disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : "Borrow"}
+            </Button>
+          ) : (
+            <Button variant="contained" color="secondary" onClick={handleReturn} disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : "Return"}
+            </Button>
+          )}
           <Button variant="outlined" color="secondary" onClick={handleClose}>
             Cancel
           </Button>

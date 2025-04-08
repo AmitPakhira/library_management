@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Box, Button, Typography, Table, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, CircularProgress, TableBody, Snackbar, Alert 
+import {
+  Box,
+  Button,
+  Typography,
+  Table,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
+  TableBody,
+  Snackbar,
+  Alert,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import Pagepopup from "./Pagepopup";
 import BorrowBookPopup from "./borrowedBook";
+// import Return from "./Return";
 
 const Books = () => {
   const [books, setBooks] = useState([]);
@@ -15,11 +30,13 @@ const Books = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [selectedBook, setSelectedBook] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
 
   useEffect(() => {
     fetchBooks();
   }, []);
-  
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
@@ -54,7 +71,7 @@ const Books = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(borrowData), // ✅ Send the complete formData
+        body: JSON.stringify(borrowData),
       });
 
       if (!response.ok) {
@@ -63,7 +80,9 @@ const Books = () => {
 
       setBooks((prevBooks) =>
         prevBooks.map((book) =>
-          book.id === borrowData.book_id ? { ...book, copies_available: book.copies_available - 1 } : book
+          book.id === borrowData.book_id
+            ? { ...book, copies_available: book.copies_available - 1 }
+            : book
         )
       );
 
@@ -74,77 +93,155 @@ const Books = () => {
     }
   };
 
+  const filteredBooks = [...books].sort((a, b) => {
+    const aMatch = a.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const bMatch = b.title.toLowerCase().includes(searchTerm.toLowerCase());
+  
+    if (aMatch && !bMatch) return -1;
+    if (!aMatch && bMatch) return 1;
+    return 0;
+  });
+  
+
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ mb: 4, textAlign: "center" }}>
-        Books
-      </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {/* Navbar */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "80px",
+          backgroundColor: "#f5f5f5",
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 4,
+          boxShadow: 3,
+          zIndex: 1100,
+        }}
+      >
+        {/* Add Book Button */}
+        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
+          Add Book
+        </Button>
 
-      <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-        Add Book
-      </Button>
+        {/* BOOK Title */}
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: "bold",
+              
+            letterSpacing: 2,
+          }}
+        >
+          BOOK
+        </Typography>
 
-      <Pagepopup open={open} handleClose={() => setOpen(false)} />
+        {/* Search Box */}
+        <TextField
+  placeholder="Search"
+  variant="outlined"
+  size="small"
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <SearchIcon />
+      </InputAdornment>
+    ),
+  }}
+/>
 
-      {loading && !books.length ? (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <TableContainer component={Paper} sx={{ maxWidth: 900, mx: "auto", mt: 3 }}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: "primary.main" }}>
-                <TableCell sx={{ color: "common.white" }}>Book ID</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Title</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Author</TableCell>
-                <TableCell sx={{ color: "common.white" }}>ISBN</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Published Date</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Category</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Copies</TableCell>
-                <TableCell sx={{ color: "common.white" }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {books.map((book, ind) => (
-                <TableRow key={ind}>
-                  <TableCell>{book.id}</TableCell> {/* ✅ Display Book ID */}
-                  <TableCell>{book.title}</TableCell>
-                  <TableCell>{book.author}</TableCell>
-                  <TableCell>{book.isbn}</TableCell>
-                  <TableCell>{book.published_year}</TableCell>
-                  <TableCell>{book.category}</TableCell>
-                  <TableCell>{book.copies_available}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      onClick={() => handleBorrowClick(book)}
-                    >
-                      Borrow
-                    </Button>
-                  </TableCell>
+      </Box>
+
+      {/* Main Content */}
+      <Box sx={{ flex: 1, p: 4, mt: '80px' }}>
+      <Pagepopup
+  open={open}
+  handleClose={() => setOpen(false)}
+  onBookAdded={() => {
+    setOpen(false);
+    fetchBooks(); // ✅ refreshes book list
+    showSnackbar("Book added successfully!", "success");
+  }}
+/>
+
+
+        {loading && !books.length ? (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer component={Paper} sx={{ maxWidth: 900, mx: "auto", mt: 3 }}>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "primary.main" }}>
+                  <TableCell sx={{ color: "common.white" }}>Book ID</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Title</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Author</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>ISBN</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Published Date</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Category</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Copies</TableCell>
+                  <TableCell sx={{ color: "common.white" }}>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              </TableHead>
+              <TableBody>
+                {filteredBooks.map((book, ind) => (
+                 <TableRow key={ind}>
+                    <TableCell>{book.id}</TableCell>
+                    <TableCell>{book.title}</TableCell>
+                    <TableCell>{book.author}</TableCell>
+                    <TableCell>{book.isbn}</TableCell>
+                    <TableCell>{book.published_year}</TableCell>
+                    <TableCell>{book.category}</TableCell>
+                    <TableCell>{book.copies_available}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => handleBorrowClick(book)}
+                      >
+                        Borrow
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
 
-      {borrowOpen && selectedBook && (
-        <BorrowBookPopup
-          open={borrowOpen}
-          handleClose={() => setBorrowOpen(false)}
-          onBorrow={handleBorrowBook} // ✅ Pass the correct function
-          user={selectedBook} // ✅ Ensure selected book is passed
-        />
-      )}
+            </Table>
+          </TableContainer>
+        )}
 
-      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
-        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: "100%" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+        {/* Borrow Popup */}
+        {borrowOpen && selectedBook && (
+          <BorrowBookPopup
+            open={borrowOpen}
+            handleClose={() => setBorrowOpen(false)}
+            onBorrow={handleBorrowBook}
+            user={selectedBook}
+          />
+        )}
+
+        {/* Snackbar */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={() => setSnackbarOpen(false)}
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarSeverity}
+            sx={{ width: "100%" }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Box>
     </Box>
   );
 };
